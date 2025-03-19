@@ -24,6 +24,14 @@ retry_command() {
   done
 }
 
+# Function to check for command errors
+check_error() {
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}$1${NC}"
+    exit 1
+  fi
+}
+
 # Ask for password at the beginning
 echo -e "${BLUE}Please enter your password for sudo when prompted:${NC}"
 
@@ -80,7 +88,7 @@ case $cpu in
     ;;
 esac
 
-# Install GNOME
+# Install GNOME and related components
 echo -e "${BLUE}Installing GNOME...${NC}"
 sudo pacman -S --noconfirm gnome gnome-extra gdm
 sudo systemctl enable gdm
@@ -94,17 +102,11 @@ if ! command -v yay &> /dev/null; then
   cd ~
 fi
 
-# Install Catppuccin theme
-echo -e "${BLUE}Installing Catppuccin theme...${NC}"
-retry_command yay -S --noconfirm catppuccin-gtk-theme-frappe || {
-  echo -e "${YELLOW}Catppuccin GTK theme AUR installation failed. Attempting to install from Git...${NC}"
+# Install Catppuccin theme and icons
+echo -e "${BLUE}Installing Catppuccin theme and icons...${NC}"
+retry_command yay -S --noconfirm catppuccin-gtk-theme-frappe catppuccin-icon-theme catppuccin-cursors catppuccin-syntax-highlighting || {
+  echo -e "${YELLOW}Catppuccin theme/icons AUR installation failed. Attempting to install from Git...${NC}"
   git clone https://github.com/catppuccin/gtk.git ~/.themes/Catppuccin-Frappe
-}
-
-# Install Catppuccin icons
-echo -e "${BLUE}Installing Catppuccin icons...${NC}"
-retry_command yay -S --noconfirm catppuccin-icon-theme || {
-  echo -e "${YELLOW}Catppuccin icons AUR installation failed. Attempting to install from Git...${NC}"
   git clone https://github.com/catppuccin/icons.git ~/.icons/Catppuccin
 }
 
@@ -114,11 +116,17 @@ mkdir -p ~/Pictures/Wallpapers
 wget https://raw.githubusercontent.com/catppuccin/wallpapers/main/frappe/frappe-mountain.png -O ~/Pictures/Wallpapers/catppuccin-frappe.png
 check_error "Failed to download Catppuccin wallpaper."
 
+# Install GNOME extensions
+echo -e "${BLUE}Installing GNOME extensions for better theme support...${NC}"
+yay -S --noconfirm gnome-shell-extension-user-theme gnome-shell-extension-gtk-custom-theme
+
 # Configure GNOME
 echo -e "${BLUE}Configuring GNOME...${NC}"
 gsettings set org.gnome.desktop.interface gtk-theme "Catppuccin-Frappe"
 gsettings set org.gnome.desktop.interface icon-theme "Catppuccin"
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/catppuccin-frappe.png"
+gsettings set org.gnome.shell.extensions.user-theme name "Catppuccin-Frappe" # Enable user theme
+gsettings set org.gnome.desktop.interface cursor-theme "Catppuccin-Cursors" # Set Catppuccin cursor theme
 
 # Install additional software
 echo -e "${BLUE}Installing additional software...${NC}"
@@ -160,10 +168,14 @@ set termguicolors
 colorscheme catppuccin-frappe
 EOL
 
-# Install TLauncher (legacy launcher)
-echo -e "${BLUE}Installing TLauncher...${NC}"
-sudo pacman -S --noconfirm tl-launcher
+# Install TLauncher using Flatpak
+echo -e "${BLUE}Installing TLauncher via Flatpak...${NC}"
+sudo flatpak install flathub ch.tlaun.TL -y
 check_error "Failed to install TLauncher."
+
+# Activate legacy launcher
+echo -e "${BLUE}Activating legacy launcher...${NC}"
+flatpak --user override ch.tlaun.TL --env=TL_BOOTSTRAP_OPTIONS="-Dtl.useForce"
 
 # Set up keyboard layout (US + Russian)
 echo -e "${BLUE}Setting up keyboard layout...${NC}"
