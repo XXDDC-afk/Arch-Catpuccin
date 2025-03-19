@@ -15,6 +15,40 @@ check_error() {
   fi
 }
 
+# Function to install a package
+install_package() {
+  echo -e "${BLUE}Installing $1...${NC}"
+  if sudo pacman -S --noconfirm --needed $1 &> /dev/null; then
+    echo -e "${GREEN}$1 installed successfully.${NC}"
+  else
+    echo -e "${YELLOW}$1 not found in repositories. Skipping.${NC}"
+  fi
+}
+
+# Function to install from AUR
+install_aur() {
+  echo -e "${BLUE}Installing $1 from AUR...${NC}"
+  if yay -S --noconfirm --needed $1 &> /dev/null; then
+    echo -e "${GREEN}$1 installed successfully from AUR.${NC}"
+  else
+    echo -e "${YELLOW}$1 not found in AUR. Skipping.${NC}"
+  fi
+}
+
+# Function to install from Git
+install_from_git() {
+  echo -e "${BLUE}Installing $1 from Git...${NC}"
+  if [ -d "$3" ]; then
+    echo -e "${YELLOW}$1 already installed. Skipping.${NC}"
+  else
+    if git clone $2 $3 &> /dev/null; then
+      echo -e "${GREEN}$1 installed successfully from Git.${NC}"
+    else
+      echo -e "${RED}Failed to install $1 from Git.${NC}"
+    fi
+  fi
+}
+
 # Update the system
 echo -e "${BLUE}Updating the system...${NC}"
 sudo pacman -Syu --noconfirm
@@ -68,9 +102,23 @@ fi
 
 # Install Catppuccin theme
 echo -e "${BLUE}Installing Catppuccin theme...${NC}"
-yay -S --noconfirm catppuccin-gtk-theme-frappe catppuccin-icon-theme
+install_aur catppuccin-gtk-theme-frappe
+if ! command -v catppuccin-gtk-theme-frappe &> /dev/null; then
+  install_from_git "Catppuccin GTK theme" "https://github.com/catppuccin/gtk.git" ~/.themes/Catppuccin-Frappe
+fi
+
+# Install Catppuccin icons (fallback to Git if AUR fails)
+echo -e "${BLUE}Installing Catppuccin icons...${NC}"
+install_aur catppuccin-icon-theme
+if ! command -v catppuccin-icon-theme &> /dev/null; then
+  install_from_git "Catppuccin icons" "https://github.com/catppuccin/icons.git" ~/.icons/Catppuccin
+fi
+
+# Install Catppuccin wallpaper
+echo -e "${BLUE}Installing Catppuccin wallpaper...${NC}"
 mkdir -p ~/Pictures/Wallpapers
 wget https://raw.githubusercontent.com/catppuccin/wallpapers/main/frappe/frappe-mountain.png -O ~/Pictures/Wallpapers/catppuccin-frappe.png
+check_error "Failed to download Catppuccin wallpaper."
 
 # Configure GNOME
 echo -e "${BLUE}Configuring GNOME...${NC}"
@@ -80,18 +128,34 @@ gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wa
 
 # Install additional software
 echo -e "${BLUE}Installing additional software...${NC}"
-sudo pacman -S --noconfirm alacritty fish neovim vlc gimp blender libreoffice-still audacity obs-studio steam discord telegram-desktop
+sudo pacman -S --noconfirm alacritty zsh neovim vlc gimp blender libreoffice-still audacity obs-studio steam discord telegram-desktop
 
 # Install cava, PipeWire, and pavucontrol
 echo -e "${BLUE}Installing cava, PipeWire, and pavucontrol...${NC}"
 sudo pacman -S --noconfirm cava pipewire pipewire-pulse pavucontrol
 
-# Install Fish shell with Catppuccin theme
-echo -e "${BLUE}Installing Fish shell...${NC}"
-sudo pacman -S --noconfirm fish
-chsh -s /usr/bin/fish
-curl -sL https://git.io/fisher | source && fisher install jorgebucaran/fisher
-fisher install catppuccin/fish
+# Install Zsh with Oh My Zsh and Powerlevel10k
+echo -e "${BLUE}Installing Zsh, Oh My Zsh, and Powerlevel10k...${NC}"
+install_package zsh
+if ! command -v zsh &> /dev/null; then
+  echo -e "${RED}Zsh installation failed. Skipping Oh My Zsh and Powerlevel10k.${NC}"
+else
+  # Install Oh My Zsh
+  echo -e "${BLUE}Installing Oh My Zsh...${NC}"
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  check_error "Failed to install Oh My Zsh."
+
+  # Install Powerlevel10k
+  echo -e "${BLUE}Installing Powerlevel10k...${NC}"
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.oh-my-zsh/custom/themes/powerlevel10k
+  sed -i 's/ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
+  echo -e "${GREEN}Powerlevel10k installed successfully.${NC}"
+
+  # Set Zsh as the default shell
+  echo -e "${BLUE}Setting Zsh as the default shell...${NC}"
+  chsh -s /usr/bin/zsh
+  check_error "Failed to set Zsh as the default shell."
+fi
 
 # Install Neovim with Catppuccin theme
 echo -e "${BLUE}Installing Neovim...${NC}"
@@ -102,16 +166,19 @@ set termguicolors
 colorscheme catppuccin-frappe
 EOL
 
-# Install TLauncher Legacy via Flatpak
-echo -e "${BLUE}Installing TLauncher Legacy...${NC}"
+# Install TLauncher via Flatpak
+echo -e "${BLUE}Installing TLauncher...${NC}"
 sudo pacman -S --noconfirm flatpak
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install flathub com.tlauncher.Legacy -y
-flatpak override com.tlauncher.Legacy --user --env=TL_NO_LICENSE=1
+flatpak install flathub ch.tlaun.TL -y
+flatpak --user override ch.tlaun.TL --env=TL_BOOTSTRAP_OPTIONS="-Dtl.useForce"
+check_error "Failed to install or configure TLauncher."
 
 # Set up keyboard layout (US + Russian)
 echo -e "${BLUE}Setting up keyboard layout...${NC}"
 localectl set-x11-keymap us,ru pc104 "" grp:alt_shift_toggle
 
-# Final message
-echo -e "${GREEN}Installation complete! Reboot your system.${NC}"
+# Final message and reboot
+echo -e "${GREEN}Installation complete! Rebooting in 5 seconds...${NC}"
+sleep 5
+sudo reboot
