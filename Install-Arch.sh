@@ -24,24 +24,16 @@ retry_command() {
   done
 }
 
-# Function to run commands with sudo
-run_sudo() {
-  echo "$PASSWORD" | sudo -S "$@"
-  retry_command "$@"
-}
-
 # Ask for password at the beginning
-echo -e "${BLUE}Please enter your password:${NC}"
-read -s PASSWORD
-echo
+echo -e "${BLUE}Please enter your password for sudo when prompted:${NC}"
 
 # Update the system
 echo -e "${BLUE}Updating the system...${NC}"
-run_sudo pacman -Syu --noconfirm
+sudo pacman -Syu --noconfirm
 
 # Install basic packages
 echo -e "${BLUE}Installing basic packages...${NC}"
-run_sudo pacman -S --noconfirm --needed git base-devel curl wget xorg xorg-server xorg-xinit xorg-xrandr
+sudo pacman -S --noconfirm --needed git base-devel curl wget xorg xorg-server xorg-xinit xorg-xrandr
 
 # Install GPU drivers
 echo -e "${BLUE}Select your GPU driver:${NC}"
@@ -53,15 +45,15 @@ read -p "Enter the number: " gpu
 case $gpu in
   1)
     echo -e "${BLUE}Installing NVIDIA drivers...${NC}"
-    run_sudo pacman -S --noconfirm nvidia nvidia-utils lib32-nvidia-utils
+    sudo pacman -S --noconfirm nvidia nvidia-utils lib32-nvidia-utils
     ;;
   2)
     echo -e "${BLUE}Installing AMD drivers...${NC}"
-    run_sudo pacman -S --noconfirm xf86-video-amdgpu
+    sudo pacman -S --noconfirm xf86-video-amdgpu
     ;;
   3)
     echo -e "${BLUE}Installing Intel drivers...${NC}"
-    run_sudo pacman -S --noconfirm xf86-video-intel
+    sudo pacman -S --noconfirm xf86-video-intel
     ;;
   *)
     echo -e "${YELLOW}No GPU driver selected. Skipping.${NC}"
@@ -77,11 +69,11 @@ read -p "Enter the number: " cpu
 case $cpu in
   1)
     echo -e "${BLUE}Installing Intel CPU microcode...${NC}"
-    run_sudo pacman -S --noconfirm intel-ucode
+    sudo pacman -S --noconfirm intel-ucode
     ;;
   2)
     echo -e "${BLUE}Installing AMD CPU microcode...${NC}"
-    run_sudo pacman -S --noconfirm amd-ucode
+    sudo pacman -S --noconfirm amd-ucode
     ;;
   *)
     echo -e "${YELLOW}No CPU driver selected. Skipping.${NC}"
@@ -90,16 +82,15 @@ esac
 
 # Install GNOME
 echo -e "${BLUE}Installing GNOME...${NC}"
-run_sudo pacman -S --noconfirm gnome gnome-extra gdm
-run_sudo systemctl enable gdm
+sudo pacman -S --noconfirm gnome gnome-extra gdm
+sudo systemctl enable gdm
 
 # Install yay (AUR helper)
 echo -e "${BLUE}Installing yay...${NC}"
 if ! command -v yay &> /dev/null; then
   git clone https://aur.archlinux.org/yay.git /tmp/yay
   cd /tmp/yay
-  echo "$PASSWORD" | sudo -S makepkg -si --noconfirm
-  check_error "Failed to install yay."
+  sudo makepkg -si --noconfirm
   cd ~
 fi
 
@@ -131,15 +122,15 @@ gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wa
 
 # Install additional software
 echo -e "${BLUE}Installing additional software...${NC}"
-run_sudo pacman -S --noconfirm alacritty zsh neovim vlc gimp blender libreoffice-still audacity obs-studio steam discord telegram-desktop
+sudo pacman -S --noconfirm alacritty zsh neovim vlc gimp blender libreoffice-still audacity obs-studio steam discord telegram-desktop
 
 # Install cava, PipeWire, and pavucontrol
 echo -e "${BLUE}Installing cava, PipeWire, and pavucontrol...${NC}"
-run_sudo pacman -S --noconfirm cava pipewire pipewire-pulse pavucontrol
+sudo pacman -S --noconfirm cava pipewire pipewire-pulse pavucontrol
 
 # Install Zsh with Oh My Zsh and Powerlevel10k
 echo -e "${BLUE}Installing Zsh, Oh My Zsh, and Powerlevel10k...${NC}"
-run_sudo pacman -S --noconfirm zsh
+sudo pacman -S --noconfirm zsh
 if ! command -v zsh &> /dev/null; then
   echo -e "${RED}Zsh installation failed. Skipping Oh My Zsh and Powerlevel10k.${NC}"
 else
@@ -162,7 +153,7 @@ fi
 
 # Install Neovim with Catppuccin theme
 echo -e "${BLUE}Installing Neovim...${NC}"
-run_sudo pacman -S --noconfirm neovim
+sudo pacman -S --noconfirm neovim
 mkdir -p ~/.config/nvim
 cat > ~/.config/nvim/init.vim <<EOL
 set termguicolors
@@ -171,7 +162,7 @@ EOL
 
 # Install TLauncher (legacy launcher)
 echo -e "${BLUE}Installing TLauncher...${NC}"
-run_sudo pacman -S --noconfirm tl-launcher
+sudo pacman -S --noconfirm tl-launcher
 check_error "Failed to install TLauncher."
 
 # Set up keyboard layout (US + Russian)
@@ -180,9 +171,9 @@ localectl set-x11-keymap us,ru pc104 "" grp:alt_shift_toggle
 
 # Install an application for changing icons and GTK themes
 echo -e "${BLUE}Installing GNOME Tweaks...${NC}"
-run_sudo pacman -S --noconfirm gnome-tweaks
+sudo pacman -S --noconfirm gnome-tweaks
 
 # Final message and reboot
 echo -e "${GREEN}Installation complete! Rebooting in 5 seconds...${NC}"
 sleep 5
-run_sudo reboot
+sudo reboot
