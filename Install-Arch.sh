@@ -90,7 +90,7 @@ echo -e "${BLUE}Installing yay...${NC}"
 if ! command -v yay &> /dev/null; then
   git clone https://aur.archlinux.org/yay.git /tmp/yay
   cd /tmp/yay
-  sudo makepkg -si --noconfirm
+  makepkg -si --noconfirm
   cd ~
 fi
 
